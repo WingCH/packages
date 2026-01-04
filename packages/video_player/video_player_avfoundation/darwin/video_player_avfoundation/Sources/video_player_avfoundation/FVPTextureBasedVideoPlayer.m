@@ -54,7 +54,17 @@
     // invisible AVPlayerLayer is used to overwrite the protection of pixel buffers in those streams
     // for issue #1, and restore the correct width and height for issue #2.
     _playerLayer = [AVPlayerLayer playerLayerWithPlayer:self.player];
+#if TARGET_OS_IOS
+    // For PIP to work, the playerLayer needs a non-zero frame. Using 1x1 keeps it effectively
+    // invisible while satisfying PIP requirements. The layer is placed off-screen to avoid
+    // any visual interference.
+    _playerLayer.frame = CGRectMake(-1, -1, 1, 1);
+#endif
     [viewProvider.view.layer addSublayer:self.playerLayer];
+
+#if TARGET_OS_IOS
+    [self setupPictureInPictureWithPlayerLayer:_playerLayer];
+#endif
   }
   return self;
 }
@@ -78,6 +88,23 @@
 }
 
 #pragma mark - Overrides
+
+- (void)reportInitialized {
+  [super reportInitialized];
+
+#if TARGET_OS_IOS
+  // Update playerLayer frame to match video size for smoother PIP transitions.
+  // When PIP starts, the system needs to know the actual video dimensions to properly
+  // render the content. Using the real size instead of 1x1 eliminates the visual delay
+  // caused by the layer needing to resize during PIP activation.
+  CGSize videoSize = self.player.currentItem.presentationSize;
+  if (videoSize.width > 0 && videoSize.height > 0) {
+    // Place the layer off-screen but with correct dimensions.
+    // The layer remains invisible (off-screen) but PIP can transition smoothly.
+    _playerLayer.frame = CGRectMake(-videoSize.width, -videoSize.height, videoSize.width, videoSize.height);
+  }
+#endif
+}
 
 - (void)updatePlayingState {
   [super updatePlayingState];

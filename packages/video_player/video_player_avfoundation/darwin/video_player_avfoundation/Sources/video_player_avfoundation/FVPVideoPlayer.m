@@ -430,4 +430,88 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   return FVPCMTimeToMillis([[[_player currentItem] asset] duration]);
 }
 
+#pragma mark - Picture in Picture
+
+#if TARGET_OS_IOS
+- (void)setupPictureInPictureWithPlayerLayer:(AVPlayerLayer *)playerLayer {
+  if (![AVPictureInPictureController isPictureInPictureSupported]) {
+    return;
+  }
+
+  _pipPlayerLayer = playerLayer;
+  _pipController = [[AVPictureInPictureController alloc] initWithPlayerLayer:playerLayer];
+  _pipController.delegate = self;
+
+  // Enable automatic PIP when app enters background while video is playing.
+  if (@available(iOS 14.2, *)) {
+    _pipController.canStartPictureInPictureAutomaticallyFromInline = YES;
+  }
+}
+
+#pragma mark - AVPictureInPictureControllerDelegate
+
+- (void)pictureInPictureControllerWillStartPictureInPicture:
+    (AVPictureInPictureController *)pictureInPictureController {
+  [self.eventListener videoPlayerWillStartPictureInPicture];
+}
+
+- (void)pictureInPictureControllerDidStartPictureInPicture:
+    (AVPictureInPictureController *)pictureInPictureController {
+  [self.eventListener videoPlayerDidStartPictureInPicture];
+}
+
+- (void)pictureInPictureControllerWillStopPictureInPicture:
+    (AVPictureInPictureController *)pictureInPictureController {
+  [self.eventListener videoPlayerWillStopPictureInPicture];
+}
+
+- (void)pictureInPictureControllerDidStopPictureInPicture:
+    (AVPictureInPictureController *)pictureInPictureController {
+  [self.eventListener videoPlayerDidStopPictureInPicture];
+}
+
+- (void)pictureInPictureController:(AVPictureInPictureController *)pictureInPictureController
+    restoreUserInterfaceForPictureInPictureStopWithCompletionHandler:
+        (void (^)(BOOL))completionHandler {
+  [self.eventListener videoPlayerRestoreUserInterfaceForPictureInPicture];
+  completionHandler(YES);
+}
+#endif
+
+#pragma mark - FVPVideoPlayerInstanceApi PIP methods
+
+- (nullable NSNumber *)isPictureInPicturePossible:(FlutterError *_Nullable *_Nonnull)error {
+#if TARGET_OS_IOS
+  if (_pipController) {
+    return @(_pipController.isPictureInPicturePossible);
+  }
+#endif
+  return @NO;
+}
+
+- (nullable NSNumber *)isPictureInPictureActive:(FlutterError *_Nullable *_Nonnull)error {
+#if TARGET_OS_IOS
+  if (_pipController) {
+    return @(_pipController.isPictureInPictureActive);
+  }
+#endif
+  return @NO;
+}
+
+- (void)startPictureInPicture:(FlutterError *_Nullable *_Nonnull)error {
+#if TARGET_OS_IOS
+  if (_pipController && _pipController.isPictureInPicturePossible) {
+    [_pipController startPictureInPicture];
+  }
+#endif
+}
+
+- (void)stopPictureInPicture:(FlutterError *_Nullable *_Nonnull)error {
+#if TARGET_OS_IOS
+  if (_pipController && _pipController.isPictureInPictureActive) {
+    [_pipController stopPictureInPicture];
+  }
+#endif
+}
+
 @end

@@ -107,6 +107,28 @@
   [self.eventChannel setStreamHandler:nil];
 }
 
+#pragma mark Picture in Picture events
+
+- (void)videoPlayerWillStartPictureInPicture {
+  [self sendOrQueue:@{@"event" : @"pipWillStart"}];
+}
+
+- (void)videoPlayerDidStartPictureInPicture {
+  [self sendOrQueue:@{@"event" : @"pipStarted"}];
+}
+
+- (void)videoPlayerWillStopPictureInPicture {
+  [self sendOrQueue:@{@"event" : @"pipWillStop"}];
+}
+
+- (void)videoPlayerDidStopPictureInPicture {
+  [self sendOrQueue:@{@"event" : @"pipStopped"}];
+}
+
+- (void)videoPlayerRestoreUserInterfaceForPictureInPicture {
+  [self sendOrQueue:@{@"event" : @"pipRestoreUserInterface"}];
+}
+
 #pragma mark Private methods
 
 /// Sends the given event to the event sink if it is ready to receive events, or enqueues it to send

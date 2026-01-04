@@ -40,6 +40,9 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
   final Map<int, VideoPlayerInstanceApi> _players =
       <int, VideoPlayerInstanceApi>{};
 
+  final Map<int, StreamController<bool>> _pipStreamControllers =
+      <int, StreamController<bool>>{};
+
   /// Registers this class as the default instance of [VideoPlayerPlatform].
   static void registerWith() {
     VideoPlayerPlatform.instance = AVFoundationVideoPlayer();
@@ -52,6 +55,7 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
 
   @override
   Future<void> dispose(int playerId) async {
+    await _pipStreamControllers.remove(playerId)?.close();
     final VideoPlayerInstanceApi? player = _players.remove(playerId);
     await player?.dispose();
     playerViewStates.remove(playerId);
@@ -177,6 +181,13 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
       dynamic event,
     ) {
       final Map<dynamic, dynamic> map = event as Map<dynamic, dynamic>;
+      final String? eventType = map['event'] as String?;
+      if (eventType == 'pipStarted') {
+        _pipStreamControllers[playerId]?.add(true);
+      } else if (eventType == 'pipStopped') {
+        _pipStreamControllers[playerId]?.add(false);
+      }
+
       return switch (map['event']) {
         'initialized' => VideoEvent(
           eventType: VideoEventType.initialized,
@@ -201,6 +212,13 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
           eventType: VideoEventType.isPlayingStateUpdate,
           isPlaying: map['isPlaying'] as bool,
         ),
+        'pipWillStart' => VideoEvent(eventType: VideoEventType.unknown),
+        'pipStarted' => VideoEvent(eventType: VideoEventType.unknown),
+        'pipWillStop' => VideoEvent(eventType: VideoEventType.unknown),
+        'pipStopped' => VideoEvent(eventType: VideoEventType.unknown),
+        'pipRestoreUserInterface' => VideoEvent(
+          eventType: VideoEventType.unknown,
+        ),
         _ => VideoEvent(eventType: VideoEventType.unknown),
       };
     });
@@ -209,6 +227,38 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
   @override
   Future<void> setMixWithOthers(bool mixWithOthers) {
     return _api.setMixWithOthers(mixWithOthers);
+  }
+
+  /// Returns true if Picture in Picture is supported on this device.
+  Future<bool> isPictureInPictureSupported() async {
+    return _api.isPictureInPictureSupported();
+  }
+
+  /// Returns true if Picture in Picture is possible in the current context.
+  Future<bool> isPictureInPicturePossible(int playerId) async {
+    return _playerWith(id: playerId).isPictureInPicturePossible();
+  }
+
+  /// Returns true if Picture in Picture is currently active.
+  Future<bool> isPictureInPictureActive(int playerId) async {
+    return _playerWith(id: playerId).isPictureInPictureActive();
+  }
+
+  /// Starts Picture in Picture mode if possible.
+  Future<void> startPictureInPicture(int playerId) {
+    return _playerWith(id: playerId).startPictureInPicture();
+  }
+
+  /// Stops Picture in Picture mode if active.
+  Future<void> stopPictureInPicture(int playerId) {
+    return _playerWith(id: playerId).stopPictureInPicture();
+  }
+
+  /// Returns a stream of PIP status changes (active/inactive).
+  Stream<bool> pipStatusStream(int playerId) {
+    return _pipStreamControllers
+        .putIfAbsent(playerId, () => StreamController<bool>.broadcast())
+        .stream;
   }
 
   @override

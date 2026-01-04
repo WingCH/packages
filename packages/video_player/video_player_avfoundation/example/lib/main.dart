@@ -325,6 +325,13 @@ class _ControlsOverlay extends StatelessWidget {
           },
         ),
         Align(
+          alignment: Alignment.topLeft,
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: _PipButton(controller: controller),
+          ),
+        ),
+        Align(
           alignment: Alignment.topRight,
           child: PopupMenuButton<double>(
             initialValue: controller.value.playbackSpeed,
@@ -351,6 +358,66 @@ class _ControlsOverlay extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _PipButton extends StatefulWidget {
+  const _PipButton({required this.controller});
+
+  final MiniController controller;
+
+  @override
+  State<_PipButton> createState() => _PipButtonState();
+}
+
+class _PipButtonState extends State<_PipButton> {
+  bool _isPipSupported = false;
+  bool _isPipActive = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPipSupport();
+  }
+
+  Future<void> _checkPipSupport() async {
+    final bool supported = await widget.controller
+        .isPictureInPictureSupported();
+    if (mounted) {
+      setState(() {
+        _isPipSupported = supported;
+      });
+    }
+  }
+
+  Future<void> _togglePip() async {
+    final bool isActive = await widget.controller.isPictureInPictureActive();
+    if (isActive) {
+      await widget.controller.stopPictureInPicture();
+    } else {
+      await widget.controller.startPictureInPicture();
+    }
+    if (mounted) {
+      setState(() {
+        _isPipActive = !isActive;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_isPipSupported) {
+      return const SizedBox.shrink();
+    }
+
+    return IconButton(
+      icon: Icon(
+        _isPipActive ? Icons.picture_in_picture : Icons.picture_in_picture_alt,
+        color: Colors.white,
+      ),
+      tooltip: _isPipActive ? 'Exit PiP' : 'Enter PiP',
+      onPressed: _togglePip,
     );
   }
 }

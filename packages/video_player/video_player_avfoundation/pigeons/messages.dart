@@ -54,6 +54,10 @@ abstract class AVFoundationVideoPlayerApi {
   void setMixWithOthers(bool mixWithOthers);
   @ObjCSelector('fileURLForAssetWithName:package:')
   String? getAssetUrl(String asset, String? package);
+
+  /// Returns true if Picture in Picture is supported on this device.
+  @ObjCSelector('isPictureInPictureSupported')
+  bool isPictureInPictureSupported();
 }
 
 @HostApi()
@@ -72,4 +76,24 @@ abstract class VideoPlayerInstanceApi {
   void seekTo(int position);
   void pause();
   void dispose();
+
+  // Picture in Picture methods
+
+  /// Returns true if Picture in Picture is possible in the current context.
+  /// This may return false if another app is using PIP, or if the video
+  /// is not ready.
+  @ObjCSelector('isPictureInPicturePossible')
+  bool isPictureInPicturePossible();
+
+  /// Returns true if Picture in Picture is currently active.
+  @ObjCSelector('isPictureInPictureActive')
+  bool isPictureInPictureActive();
+
+  /// Starts Picture in Picture mode if possible.
+  @ObjCSelector('startPictureInPicture')
+  void startPictureInPicture();
+
+  /// Stops Picture in Picture mode if active.
+  @ObjCSelector('stopPictureInPicture')
+  void stopPictureInPicture();
 }

@@ -29,4 +29,17 @@
 - (void)videoPlayerDidSetPlaying:(BOOL)playing;
 /// Called when the video player has been disposed on the Dart side.
 - (void)videoPlayerWasDisposed;
+
+// Picture in Picture events
+
+/// Called when Picture in Picture is about to start.
+- (void)videoPlayerWillStartPictureInPicture;
+/// Called when Picture in Picture has started.
+- (void)videoPlayerDidStartPictureInPicture;
+/// Called when Picture in Picture is about to stop.
+- (void)videoPlayerWillStopPictureInPicture;
+/// Called when Picture in Picture has stopped.
+- (void)videoPlayerDidStopPictureInPicture;
+/// Called when the user taps the restore button in the PIP window to return to the app.
+- (void)videoPlayerRestoreUserInterfaceForPictureInPicture;
 @end

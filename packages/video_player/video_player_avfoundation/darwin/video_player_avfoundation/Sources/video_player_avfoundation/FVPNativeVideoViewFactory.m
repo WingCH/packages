@@ -37,7 +37,14 @@
 #endif
   NSNumber *playerIdentifier = @(args.playerId);
   FVPVideoPlayer *player = self.playerByIdProvider(playerIdentifier);
-  return [[FVPNativeVideoView alloc] initWithPlayer:player.player];
+  FVPNativeVideoView *view = [[FVPNativeVideoView alloc] initWithPlayer:player.player];
+
+#if TARGET_OS_IOS
+  AVPlayerLayer *playerLayer = (AVPlayerLayer *)view.view.layer;
+  [player setupPictureInPictureWithPlayerLayer:playerLayer];
+#endif
+
+  return view;
 }
 
 - (NSObject<FlutterMessageCodec> *)createArgsCodec {

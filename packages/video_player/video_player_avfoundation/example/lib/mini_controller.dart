@@ -12,6 +12,7 @@ import 'dart:math' as math show max;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:video_player_avfoundation/video_player_avfoundation.dart';
 import 'package:video_player_platform_interface/video_player_platform_interface.dart';
 
 VideoPlayerPlatform? _cachedPlatform;
@@ -202,9 +203,13 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
   /// The type of view used to display the video.
   final VideoViewType viewType;
 
+  /// Notifies when PIP state changes.
+  final ValueNotifier<bool> isPipActive = ValueNotifier<bool>(false);
+
   Timer? _timer;
   Completer<void>? _creatingCompleter;
   StreamSubscription<dynamic>? _eventSubscription;
+  StreamSubscription<bool>? _pipSubscription;
 
   /// The id of a player that hasn't been initialized.
   @visibleForTesting
@@ -295,6 +300,17 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
     _eventSubscription = _platform
         .videoEventsFor(_playerId)
         .listen(eventListener, onError: errorListener);
+
+    if (_platform is AVFoundationVideoPlayer) {
+      // Use dynamic dispatch because the method is not in the platform interface
+      // and static analysis might fail across package boundaries for new methods.
+      _pipSubscription =
+          ((_platform as dynamic).pipStatusStream(_playerId) as Stream<bool>)
+              .listen((bool isActive) {
+                isPipActive.value = isActive;
+              });
+    }
+
     return initializingCompleter.future;
   }
 
@@ -304,6 +320,7 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
       await _creatingCompleter!.future;
       _timer?.cancel();
       await _eventSubscription?.cancel();
+      await _pipSubscription?.cancel();
       await _platform.dispose(_playerId);
     }
     super.dispose();
@@ -372,6 +389,63 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
   void _updatePosition(Duration position) {
     value = value.copyWith(position: position);
   }
+
+  // Picture in Picture methods
+
+  /// Returns true if Picture in Picture is supported on this device.
+  Future<bool> isPictureInPictureSupported() async {
+    final VideoPlayerPlatform platform = _platform;
+    if (platform is AVFoundationVideoPlayer) {
+      return platform.isPictureInPictureSupported();
+    }
+    return false;
+  }
+
+  /// Returns true if Picture in Picture is possible in the current context.
+  Future<bool> isPictureInPicturePossible() async {
+    if (_playerId == kUninitializedPlayerId) {
+      return false;
+    }
+    final VideoPlayerPlatform platform = _platform;
+    if (platform is AVFoundationVideoPlayer) {
+      return platform.isPictureInPicturePossible(_playerId);
+    }
+    return false;
+  }
+
+  /// Returns true if Picture in Picture is currently active.
+  Future<bool> isPictureInPictureActive() async {
+    if (_playerId == kUninitializedPlayerId) {
+      return false;
+    }
+    final VideoPlayerPlatform platform = _platform;
+    if (platform is AVFoundationVideoPlayer) {
+      return platform.isPictureInPictureActive(_playerId);
+    }
+    return false;
+  }
+
+  /// Starts Picture in Picture mode if possible.
+  Future<void> startPictureInPicture() async {
+    if (_playerId == kUninitializedPlayerId) {
+      return;
+    }
+    final VideoPlayerPlatform platform = _platform;
+    if (platform is AVFoundationVideoPlayer) {
+      await platform.startPictureInPicture(_playerId);
+    }
+  }
+
+  /// Stops Picture in Picture mode if active.
+  Future<void> stopPictureInPicture() async {
+    if (_playerId == kUninitializedPlayerId) {
+      return;
+    }
+    final VideoPlayerPlatform platform = _platform;
+    if (platform is AVFoundationVideoPlayer) {
+      await platform.stopPictureInPicture(_playerId);
+    }
+  }
 }
 
 /// Widget that displays the video controlled by [controller].
@@ -428,9 +502,34 @@ class _VideoPlayerState extends State<VideoPlayer> {
 
   @override
   Widget build(BuildContext context) {
-    return _playerId == MiniController.kUninitializedPlayerId
+    final Widget playerView = _playerId == MiniController.kUninitializedPlayerId
         ? Container()
         : _platform.buildViewWithOptions(VideoViewOptions(playerId: _playerId));
+
+    return ValueListenableBuilder<bool>(
+      valueListenable: widget.controller.isPipActive,
+      builder: (BuildContext context, bool isPipActive, Widget? child) {
+        return Stack(
+          children: <Widget>[
+            child!,
+            if (isPipActive &&
+                widget.controller.viewType == VideoViewType.textureView)
+              Positioned.fill(
+                child: Container(
+                  color: const Color(0xFF000000),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'This video is playing in picture in picture',
+                    style: TextStyle(color: Color(0xFFFFFFFF)),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+      child: playerView,
+    );
   }
 }
 

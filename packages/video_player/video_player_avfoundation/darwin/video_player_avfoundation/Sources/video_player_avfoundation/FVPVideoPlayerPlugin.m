@@ -7,6 +7,10 @@
 
 #import <AVFoundation/AVFoundation.h>
 
+#if TARGET_OS_IOS
+#import <AVKit/AVKit.h>
+#endif
+
 #import "./include/video_player_avfoundation/FVPAVFactory.h"
 #import "./include/video_player_avfoundation/FVPDisplayLink.h"
 #import "./include/video_player_avfoundation/FVPEventBridge.h"
@@ -260,6 +264,14 @@ static void upgradeAudioSessionCategory(AVAudioSessionCategory requestedCategory
     return nil;
   }
   return [NSURL fileURLWithPath:path].absoluteString;
+}
+
+- (nullable NSNumber *)isPictureInPictureSupported:(FlutterError *_Nullable *_Nonnull)error {
+#if TARGET_OS_IOS
+  return @([AVPictureInPictureController isPictureInPictureSupported]);
+#else
+  return @NO;
+#endif
 }
 
 /// Returns the AVPlayerItem corresponding to the given player creation options.
